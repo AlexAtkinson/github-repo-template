@@ -1,4 +1,4 @@
-name: Pull Request Template Check
+name: PR / Checks / Checklist
 
 on:
   pull_request:
@@ -14,14 +14,33 @@ permissions:
 
 jobs:
   security-checklist:
-    name: Security checklist
+    name: Security Checklist
     runs-on: ubuntu-latest
     steps:
       - name: Require a complete security checklist
         uses: actions/github-script@v7
         with:
           script: |
-            const body = context.payload.pull_request.body || '';
+            const startMarker = '<!-- security-checklist:start -->';
+            const endMarker = '<!-- security-checklist:end -->';
+            const deadline = Date.now() + 10_000;
+            let body = '';
+
+            do {
+              const { data: pullRequest } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+              });
+              body = pullRequest.body || '';
+
+              if (body.includes(startMarker) && body.includes(endMarker)) break;
+
+              const remaining = deadline - Date.now();
+              if (remaining <= 0) break;
+              await new Promise((resolve) => setTimeout(resolve, Math.min(1_000, remaining)));
+            } while (Date.now() < deadline);
+
             const required = [
               'I did not add secrets, credentials, tokens, or private data.',
               'I considered input validation, authorization, and access control.',
@@ -30,8 +49,8 @@ jobs:
               'I confirmed this change does not weaken logging, monitoring, or incident response.',
             ];
 
-            if (!body.includes('<!-- security-checklist:start -->') || !body.includes('<!-- security-checklist:end -->')) {
-              core.setFailed('The routed security checklist is missing from the PR body.');
+            if (!body.includes(startMarker) || !body.includes(endMarker)) {
+              core.setFailed('The routed security checklist did not appear in the PR body within 10 seconds.');
               return;
             }
 

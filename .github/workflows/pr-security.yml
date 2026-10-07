@@ -1,4 +1,4 @@
-name: PR Security
+name: PR / Checks / Security
 
 on:
   pull_request:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   security:
-    name: Security posture
+    name: Security and Quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source

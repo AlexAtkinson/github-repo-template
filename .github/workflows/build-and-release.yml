@@ -1,4 +1,4 @@
-name: Build and Release
+name: Release / Build and Publish
 
 on:
   push:
@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   build-and-release:
+    name: Build, Attest, Sign, and Publish
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source

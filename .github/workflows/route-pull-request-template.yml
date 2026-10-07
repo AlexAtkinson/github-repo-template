@@ -1,4 +1,4 @@
-name: Route Pull Request Template
+name: PR / Automation / Template Routing
 
 on:
   pull_request_target:
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   route-template:
+    name: Template Routing
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pull request
