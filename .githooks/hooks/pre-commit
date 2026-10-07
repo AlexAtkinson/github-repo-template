@@ -39,7 +39,7 @@ EOF
   exit 1
 fi
 
-gitleaks git --pre-commit --staged --redact --no-banner \
+gitleaks git --pre-commit --staged --redact --no-banner --verbose \
   --config "$(git rev-parse --show-toplevel)/.gitleaks.toml" || {
   printf '%s\n' 'pre-commit: gitleaks detected potential secrets; commit aborted.' >&2
   exit 1

@@ -18,6 +18,12 @@ paths = [
 ]
 
 [[allowlists]]
+description = "Upstream MegaLinter agent skill documentation"
+paths = [
+  '''(?i)(?:^|/)\.agents/skills/megalinter(?:-check|-fix|-setup)?/''',
+]
+
+[[allowlists]]
 description = "Placeholder and templated values"
 regexTarget = "secret"
 regexes = [
