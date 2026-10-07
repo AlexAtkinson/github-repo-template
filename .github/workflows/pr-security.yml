@@ -41,6 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VALIDATE_ALL_CODEBASE: true
+          GITHUB_COMMENT_REPORTER: "false"
 
       - name: Check for Dockerfiles
         id: dockerfiles
