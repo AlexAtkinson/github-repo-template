@@ -28,7 +28,7 @@ jobs:
       - name: Scan for secrets with detect-secrets
         shell: bash
         run: |
-          detect-secrets scan --all-files --exclude-files '(^|/)(\.git|node_modules)/' > detect-secrets.json
+          detect-secrets scan --all-files --exclude-files '(^|/)(\.git|node_modules)/|(^|/)\.githooks/gitleaks\.toml$' > detect-secrets.json
           findings=$(jq '[.results | to_entries[]] | length' detect-secrets.json)
           if [[ "$findings" -ne 0 ]]; then
             echo "detect-secrets found $findings potential secret(s)."
