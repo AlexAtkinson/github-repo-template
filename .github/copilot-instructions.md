@@ -14,6 +14,8 @@ After the first initialization effort has implemented the repository's purpose a
 
 Treat `.github/workflows/build-and-release.yml` as critical release-security infrastructure. Changes to it can affect every published release; preserve its security controls and carefully review changes to permissions, build inputs, generated assets, attestations, signing, or release contents.
 
+Pin every third-party GitHub Action in `.github/workflows/` to a full commit SHA, with the reviewed upstream version in a trailing comment. When upgrading an action, verify the SHA against the intended upstream release, review its changes and permissions, and update the version comment. Do not add mutable major-version or branch references.
+
 Every published artifact must have a current, accurate SBOM that corresponds to the artifact being released. Maintain the SBOM generation inputs whenever build outputs or dependencies change, and ensure the SBOM captures direct and transitive components with their versions, licenses, copyrights, and required attribution notices. Do not invent license or attribution data; resolve missing or ambiguous metadata from authoritative sources and include applicable third-party notices with the release.
 
 For each release, attest the artifact's build provenance and bind its SBOM to that artifact using GitHub artifact attestations. Sign every published artifact and its SBOM with Sigstore Cosign, and publish the signatures and certificates or bundles needed for independent verification. Do not remove, bypass, or silently weaken these controls. Keep verification instructions and release contents in sync with the workflow.

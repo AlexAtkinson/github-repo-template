@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
       - name: Scan for secrets with Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
@@ -37,7 +37,7 @@ jobs:
           fi
 
       - name: Run MegaLinter
-        uses: oxsecurity/megalinter/flavors/ci_light@v8
+        uses: oxsecurity/megalinter/flavors/ci_light@e08c2b05e3dbc40af4c23f41172ef1e068a7d651 # v8.8.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
           VALIDATE_ALL_CODEBASE: true
@@ -54,7 +54,7 @@ jobs:
 
       - name: Run Hadolint
         if: steps.dockerfiles.outputs.present == 'true'
-        uses: hadolint/hadolint-action@v3.1.0
+        uses: hadolint/hadolint-action@54c9adbab1582c2ef04b2016b760714a4bfde3cf # v3.1.0
         with:
           recursive: true
 
@@ -70,7 +70,7 @@ jobs:
 
       - name: Run Checkov
         if: steps.iac.outputs.present == 'true'
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@a76233b2c1d4a820a9dc68be350c473a4a9dceec # v12.3130.0
         with:
           directory: .
           quiet: true
