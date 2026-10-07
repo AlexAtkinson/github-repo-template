@@ -11,7 +11,7 @@ useDefault = true
 [[allowlists]]
 description = "Vendored dependencies and binary assets"
 paths = [
-  '''(?i)(?:^|/)\.gitleaks\.toml$''',
+  '''(?i)(?:^|/)\.?gitleaks\.toml$''',
   '''(?i)(?:^|/)node_modules/''',
   '''(?i)(?:^|/)vendor/''',
   '''(?i)\.(?:png|jpe?g|gif|pdf|ico|svg|woff2?)$''',

@@ -4,10 +4,13 @@ set -euo pipefail
 
 readonly start_marker='# HOOKSYNC - AUTOCONFIG START --------------------------------------------------'
 readonly end_marker='# HOOKSYNC - AUTOCONFIG END ----------------------------------------------------'
+readonly managed_file_marker='# HOOKSYNC - MANAGED FILE ------------------------------------------------------'
 
 repo_root=$(git rev-parse --show-toplevel)
 hooks_dir=$(git rev-parse --git-path hooks)
 source_dir="$repo_root/.githooks/hooks"
+gitleaks_source="$repo_root/.githooks/gitleaks.toml"
+gitleaks_target="$repo_root/.gitleaks.toml"
 
 cd "$repo_root"
 mkdir -p "$hooks_dir"
@@ -72,3 +75,32 @@ for target_hook in "$hooks_dir"/*; do
   strip_managed_block "$target_hook" > "$temporary_file"
   mv "$temporary_file" "$target_hook"
 done
+
+is_managed_file() {
+  [[ -f "$1" ]] && [[ "$(head -n 1 "$1")" == "$managed_file_marker" ]]
+}
+
+if [[ -f "$gitleaks_source" ]]; then
+  if [[ -f "$gitleaks_target" ]] && ! is_managed_file "$gitleaks_target"; then
+    printf '%s\n' "hook-sync: $gitleaks_target is not managed by hook-sync; leaving it unchanged." >&2
+  else
+    temporary_file=$(mktemp)
+    {
+      printf '%s\n' "$managed_file_marker"
+      printf '%s\n' '# WARNING: This file is maintained by the Git hook synchronizer (.githooks/hook-sync.sh).'
+      printf '%s\n' '#          Local changes will be overwritten on the next commit or merge.'
+      printf '%s\n' '#          To persist a change, edit .githooks/gitleaks.toml and commit it.'
+      printf '\n'
+      cat "$gitleaks_source"
+    } > "$temporary_file"
+
+    if cmp -s "$temporary_file" "$gitleaks_target"; then
+      rm "$temporary_file"
+    else
+      mv "$temporary_file" "$gitleaks_target"
+      chmod 644 "$gitleaks_target"
+    fi
+  fi
+elif is_managed_file "$gitleaks_target"; then
+  rm "$gitleaks_target"
+fi

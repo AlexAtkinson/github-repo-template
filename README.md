@@ -62,6 +62,8 @@ After setup, the `pre-commit`, `post-commit`, and `post-merge` lifecycle hooks r
 
 Repository owners add hook behavior by creating a file named for a Git hook in `.githooks/hooks/`, such as `pre-push` or `commit-msg`, then committing it. Keep hook code portable and fail clearly when a required project tool is unavailable.
 
+The synchronizer also deploys `.githooks/gitleaks.toml` to the Git-ignored `.gitleaks.toml` at the repository root, where the `pre-commit` secrets scan and local Gitleaks runs load it. Edit and commit `.githooks/gitleaks.toml` to change the rules; local edits to the deployed copy are overwritten.
+
 ## 📦 Installation
 
 Create a repository from this template or clone an existing repository, then initialize its managed hooks:
@@ -72,7 +74,7 @@ cd your-repo
 bash .githooks/setup.sh
 ```
 
-No package manager or runtime installation is required for the hook framework beyond Git and Bash. Application-specific prerequisites belong in the repository created from this template.
+The hook framework requires only Git and Bash. The baseline `pre-commit` hook also requires [Gitleaks](https://github.com/gitleaks/gitleaks) to scan staged changes for secrets. Application-specific prerequisites belong in the repository created from this template.
 
 ## 🛡️ Security
 
@@ -108,6 +110,7 @@ Install the tools required to use and validate the template locally:
 
 * Git
 * Bash
+* [Gitleaks](https://github.com/gitleaks/gitleaks) for the `pre-commit` secrets scan
 * [ShellCheck](https://www.shellcheck.net/) for shell-script validation
 
 ### Setup workspace

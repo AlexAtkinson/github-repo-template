@@ -1,3 +1,46 @@
 #!/usr/bin/env bash
 
 bash "$(git rev-parse --show-toplevel)/.githooks/hook-sync.sh"
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf '%s\n\n' 'pre-commit: gitleaks is required to scan for secrets. Install it with:' >&2
+  case "$OSTYPE" in
+    darwin*)
+      printf '%s\n' '  brew install gitleaks' >&2
+      ;;
+    msys*|cygwin*)
+      cat >&2 << 'EOF'
+  winget install --exact --id Gitleaks.Gitleaks
+
+Then refresh PATH for the current session.
+  Git Bash:
+    export PATH="$PATH:$(cygpath -p "$(powershell.exe -NoProfile -Command '[Environment]::GetEnvironmentVariable("Path","User")' | tr -d '\r')")"
+  PowerShell:
+    $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+EOF
+      ;;
+    linux*)
+      case "$(uname -m)" in
+        aarch64|arm64) arch='arm64' ;;
+        *)             arch='x64' ;;
+      esac
+      cat >&2 << EOF
+  VERSION=\$(curl -fsSL https://api.github.com/repos/gitleaks/gitleaks/releases/latest | grep '"tag_name":' | cut -d '"' -f 4 | tr -d 'v')
+  curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v\${VERSION}/gitleaks_\${VERSION}_linux_${arch}.tar.gz" -o gitleaks.tar.gz
+  tar -zxf gitleaks.tar.gz gitleaks
+  sudo mv gitleaks /usr/local/bin/
+  rm gitleaks.tar.gz
+EOF
+      ;;
+    *)
+      printf '%s\n' '  See https://github.com/gitleaks/gitleaks#installing' >&2
+      ;;
+  esac
+  exit 1
+fi
+
+gitleaks git --pre-commit --staged --redact --no-banner \
+  --config "$(git rev-parse --show-toplevel)/.gitleaks.toml" || {
+  printf '%s\n' 'pre-commit: gitleaks detected potential secrets; commit aborted.' >&2
+  exit 1
+}
