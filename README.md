@@ -102,6 +102,32 @@ In GitHub, open **Settings → Rules → Rulesets** (or **Branches** for classic
 
 Confirm the selected check names appear after the workflows have run on a pull request. Rulesets and approval requirements depend on repository visibility and GitHub plan; verify the active rules in the repository settings.
 
+### Authorize Manual Workflows Without Enterprise
+
+For public repositories, GitHub Environments with required reviewers are available without GitHub Enterprise. Configure an environment such as `production` under **Settings → Environments**, add required reviewers, enable **Prevent self-review**, and attach deployment secrets to that environment. Have the privileged job declare `environment: production`; the job will wait for approval before running or receiving those secrets. Private repositories need GitHub Pro or Team for environment protections.
+
+If environment reviewers are unavailable, a `workflow_dispatch` actor allow-list can gate a privileged job. This is a basic repository-level gate, not a substitute for human review or an environment that withholds secrets until approval. Protect workflow files with branch rules and keep the allow-list limited to trusted maintainers:
+
+```yaml
+name: Authorized Manual Task
+
+on:
+    workflow_dispatch:
+
+jobs:
+    privileged-task:
+        if: ${{ contains(fromJSON('["AlexAtkinson", "trusted-maintainer"]'), github.triggering_actor) }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - run: echo "Run the task with only the permissions it needs."
+```
+
+Replace the example usernames and job permissions. `github.triggering_actor` checks the user requesting a rerun; `github.actor` remains the original run actor on reruns. Unauthorized runs skip the restricted job. The allow-list only controls who can proceed, so use narrowly scoped permissions and keep workflow files protected by branch rules. Keep untrusted workflow inputs out of inline shell source; pass them through environment variables and validate them before use.
+
+The [linked workflow example](https://gist.githubusercontent.com/AlexAtkinson/73b8fde4c010e5983cfc22e0928dfc5c/raw/78bc6d1526f117e60292734d74b64327f5c0b560/gh-workflow-auth-example.yml) demonstrates the actor-allow-list idea, but do not copy it verbatim: it uses the retired `::set-output` command and interpolates workflow input into shell code. Use `$GITHUB_OUTPUT` for step outputs, and validate inputs before passing them to commands.
+
 ## 🛡️ Security
 
 Git hooks execute local code. Treat changes under `.githooks/hooks/` and `.githooks/hook-sync.sh` as executable-code changes and review them with the same care as build or deployment scripts.
