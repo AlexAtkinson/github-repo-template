@@ -1,0 +1,123 @@
+title = "Hardened Gitleaks Configuration"
+
+# Keep gitleaks' built-in rules (AWS key IDs, private keys, GitHub, Slack, etc.)
+# and layer the rules below on top of them.
+[extend]
+useDefault = true
+
+# ==============================================================================
+# GLOBAL ALLOWLIST: Paths and placeholder values that are never secrets
+# ==============================================================================
+[[allowlists]]
+description = "Vendored dependencies and binary assets"
+paths = [
+  '''(?i)(?:^|/)\.gitleaks\.toml$''',
+  '''(?i)(?:^|/)node_modules/''',
+  '''(?i)(?:^|/)vendor/''',
+  '''(?i)\.(?:png|jpe?g|gif|pdf|ico|svg|woff2?)$''',
+]
+
+[[allowlists]]
+description = "Placeholder and templated values"
+regexTarget = "secret"
+regexes = [
+  '''(?i)^(?:<[^>]*>|\$\{[^}]*\}|\{\{[^}]*\}\}|x{6,}|\*{6,}|changeme|redacted|(?:your|my|example|sample|dummy|fake|placeholder)[\w-]*)$''',
+  '''(?i)your[-_]?api[-_]?key''',
+  '''(?i)dummy[-_]?secret''',
+]
+
+# ==============================================================================
+# RULE 1: Credentials Embedded in URLs
+# Matches: https://user:S3cr3t@host, postgres://app:p@ss!@db.host:5432/app,
+#          mongodb+srv://svc:pw@cluster.net, redis://:pw@cache:6379
+# ==============================================================================
+[[rules]]
+id = "url-userinfo-password"
+description = "Detects passwords embedded in URL authority strings (user:password@host)"
+regex = '''\b[a-zA-Z][a-zA-Z0-9+.-]{1,20}://[^\s:@/"']*:([^\s:@/"'$<{][^\s:@/"']{5,})@'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["://"]
+
+[[rules.allowlists]]
+description = "Ignore well-known placeholder credentials in URLs"
+regexTarget = "match"
+regexes = [
+  '''(?i)://(?:user|username):(?:pass|password)@''',
+  '''(?i)://(?:root:root|admin:admin)@''',
+]
+
+# ==============================================================================
+# RULE 2: Secrets Passed in URL Query Strings
+# Matches: https://api.service.com/v1?api_key=8f3kLq92mZpX7vB4, ?access_token=...,
+#          Azure SAS &sig=..., S3 presigned &X-Amz-Signature=...
+# ==============================================================================
+[[rules]]
+id = "url-query-credential"
+description = "Detects API keys, tokens, signatures, and secrets passed as URL query parameters"
+regex = '''(?i)[?&](?:x-amz-signature|signature|sig|(?:access|refresh|id|auth)?[_-]?token|bearer|api[_-]?key|app[_-]?key|key|client[_-]?secret|secret|pass|password|passwd|pwd|auth)=([^&\s"'#<>]{12,})'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["signature=", "sig=", "token=", "bearer=", "key=", "secret=", "pass=", "password=", "passwd=", "pwd=", "auth="]
+
+# ==============================================================================
+# RULE 3: Generic Credential Assignments
+# Matches: PASSWORD=kKIENlne892bk12&^lni, {"password": "Tr0ub4dor&3x"},
+#          client_secret: "Qm8~vX2.pL9_rT4", db_password: Xk9#mP2$vL7q
+# The default generic-api-key rule misses values containing symbols such as & or ^.
+# ==============================================================================
+[[rules]]
+id = "generic-credential-assignment"
+description = "Detects credential-like variables assigned a literal value"
+regex = '''(?i)\b[\w.-]*(?:passwd|password|pwd|secret|token|api[_-]?key|private[_-]?key)[\w.-]*["']?\s*[:=]\s*["']?([^\s"'$<{][^\s"']{7,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["passwd", "password", "pwd", "secret", "token", "api_key", "api-key", "apikey", "private_key", "private-key", "privatekey"]
+
+# ==============================================================================
+# RULE 4: AWS Secret Access Keys
+# Matches: AWS_SECRET_ACCESS_KEY=..., aws_secret_access_key = ... (INI),
+#          aws configure set aws_secret_access_key ...
+# Access key IDs (AKIA/ASIA) are covered by the default aws-access-token rule.
+# ==============================================================================
+[[rules]]
+id = "aws-secret-access-key"
+description = "Detects 40-character AWS secret access keys near an AWS secret label"
+regex = '''(?i)aws.{0,20}?secret.{0,20}?[\s:=,"'`]+([A-Za-z0-9/+]{40})(?:[^A-Za-z0-9/+=]|$)'''
+secretGroup = 1
+entropy = 4.0
+keywords = ["aws"]
+
+# ==============================================================================
+# RULE 5: AWS Temporary Session Tokens
+# Matches: AWS_SESSION_TOKEN=..., aws_session_token = ..., "SessionToken": "...",
+#          X-Amz-Security-Token=...
+# ==============================================================================
+[[rules]]
+id = "aws-session-token"
+description = "Detects AWS temporary session or security tokens"
+regex = '''(?i)(?:session_?token|x-amz-security-token)["']?\s*[:=\s]\s*["']?([A-Za-z0-9/+=%]{100,})'''
+secretGroup = 1
+entropy = 4.0
+keywords = ["sessiontoken", "session_token", "x-amz-security-token"]
+
+# ==============================================================================
+# RULE 6: HTTP Authorization Headers
+# Matches: Authorization: Bearer 8f3kLq92mZpX7vB4nR1t...,
+#          Authorization: Basic YWRtaW46UzNjcjN0...
+# ==============================================================================
+[[rules]]
+id = "http-bearer-token"
+description = "Detects HTTP Bearer tokens"
+regex = '''(?i)\bbearer\s+([A-Za-z0-9._~+/-]{20,}=*)'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["bearer"]
+
+[[rules]]
+id = "http-basic-auth"
+description = "Detects HTTP Basic authorization credentials"
+regex = '''(?i)\bauthorization\s*:\s*basic\s+([A-Za-z0-9+/]{8,}={0,2})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["basic"]
