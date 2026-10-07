@@ -1,0 +1,76 @@
+name: PR Security
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security:
+    name: Security posture
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for secrets with Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Install detect-secrets
+        run: python -m pip install --disable-pip-version-check detect-secrets
+
+      - name: Scan for secrets with detect-secrets
+        shell: bash
+        run: |
+          detect-secrets scan --all-files --exclude-files '(^|/)(\.git|node_modules)/' > detect-secrets.json
+          findings=$(jq '[.results | to_entries[]] | length' detect-secrets.json)
+          if [[ "$findings" -ne 0 ]]; then
+            echo "detect-secrets found $findings potential secret(s)."
+            cat detect-secrets.json
+            exit 1
+          fi
+
+      - name: Run MegaLinter
+        uses: oxsecurity/megalinter/flavors/ci_light@v8
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VALIDATE_ALL_CODEBASE: true
+
+      - name: Check for Dockerfiles
+        id: dockerfiles
+        shell: bash
+        run: |
+          if find . -type f \( -iname 'Dockerfile' -o -iname 'Dockerfile.*' \) -print -quit | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Hadolint
+        if: steps.dockerfiles.outputs.present == 'true'
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          recursive: true
+
+      - name: Check for infrastructure files
+        id: iac
+        shell: bash
+        run: |
+          if find . -type f \( -name '*.tf' -o -name '*.tf.json' -o -name 'template.yml' -o -name 'template.yaml' -o -name 'serverless.yml' -o -name 'serverless.yaml' \) -print -quit | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Checkov
+        if: steps.iac.outputs.present == 'true'
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          quiet: true

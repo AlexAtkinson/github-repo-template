@@ -1,0 +1,66 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine version
+        id: version
+        uses: AlexAtkinson/github-action-gitops-autover@0.13.0
+        with:
+          force-patch-increment: true
+
+      - name: Create example asset
+        run: echo "Hello World!" > asset.txt
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: asset.txt
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3.8.1
+
+      - name: Sign example asset
+        run: >-
+          cosign sign-blob --yes --output-signature asset.txt.sig
+          --output-certificate asset.txt.pem asset.txt
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.new-version }}
+          name: ${{ steps.version.outputs.new-version }}
+          generate_release_notes: true
+          files: |
+            asset.txt
+            asset.txt.sig
+            asset.txt.pem
+            sbom.spdx.json
