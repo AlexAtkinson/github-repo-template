@@ -76,6 +76,58 @@ bash .githooks/setup.sh
 
 The hook framework requires only Git and Bash. The baseline `pre-commit` hook also requires [Gitleaks](https://github.com/gitleaks/gitleaks) to scan staged changes for secrets. Application-specific prerequisites belong in the repository created from this template.
 
+## Adopting This Template
+
+After creating a repository from this template, initialize it according to its intended purpose before treating the example content as project documentation:
+
+* Replace the project name, purpose, maintainers, component boundaries, architecture, and technology stack in the README.
+* Replace sample installation, build, test, and release commands with commands that have been verified for the new project.
+* Classify the data the project handles, document network exposure and security controls, and set a real vulnerability-reporting path.
+* Review the pull-request categories, templates, checklist wording, and required checks; keep the router mappings and template files aligned.
+* Preserve and adapt `.githooks/`, Gitleaks, PR security automation, and release SBOM, attribution, provenance, attestation, and signing controls. Replace example release assets and build steps with the actual artifacts; do not publish the sample `asset.txt` as a real product.
+* Update the SBOM inputs and third-party attribution notices as build outputs and dependencies change. Resolve license data from authoritative sources.
+* Review [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [LICENSE](LICENSE), and [NOTICE](NOTICE) for fit, retaining required license and attribution notices.
+* Complete the one-time steps in `.github/copilot-instructions.md` and change `INIT_TEMPLATE=true` to `false` after the initial purpose and tooling review.
+
+### Protect the Default Branch
+
+In GitHub, open **Settings → Rules → Rulesets** (or **Branches** for classic protection rules) and add a ruleset targeting the default branch. Configure it to:
+
+1. Require changes to arrive through a pull request; block direct pushes, force pushes, and branch deletion.
+2. For a personal repository, request one review on each pull request, preferably from an independent person; use an AI review when no peer is available. Require one formal approval when another maintainer is available. For a solo repository, do not set an approval count the only contributor cannot satisfy; use an AI review as an advisory or require its check only if the integration publishes a branch-protection-compatible status.
+3. Require two independent human approvals for corporate repositories; AI review may provide an additional signal but should not replace either approval.
+4. Dismiss stale approvals when new commits are pushed and require approval of the most recent reviewable push.
+5. Require all conversations to be resolved before merging.
+6. Require the `Security and Quality` and `Security Checklist` checks to pass. Do not require `Template Routing`; it is PR automation rather than a quality gate.
+
+Confirm the selected check names appear after the workflows have run on a pull request. Rulesets and approval requirements depend on repository visibility and GitHub plan; verify the active rules in the repository settings.
+
+### Authorize Manual Workflows Without Enterprise
+
+For public repositories, GitHub Environments with required reviewers are available without GitHub Enterprise. Configure an environment such as `production` under **Settings → Environments**, add required reviewers, enable **Prevent self-review**, and attach deployment secrets to that environment. Have the privileged job declare `environment: production`; the job will wait for approval before running or receiving those secrets. Private repositories need GitHub Pro or Team for environment protections.
+
+If environment reviewers are unavailable, a `workflow_dispatch` actor allow-list can gate a privileged job. This is a basic repository-level gate, not a substitute for human review or an environment that withholds secrets until approval. Protect workflow files with branch rules and keep the allow-list limited to trusted maintainers:
+
+```yaml
+name: Authorized Manual Task
+
+on:
+    workflow_dispatch:
+
+jobs:
+    privileged-task:
+        if: ${{ contains(fromJSON('["AlexAtkinson", "trusted-maintainer"]'), github.triggering_actor) }}
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        steps:
+            - run: echo "Run the task with only the permissions it needs."
+```
+
+Replace the example usernames and job permissions. `github.triggering_actor` checks the user requesting a rerun; `github.actor` remains the original run actor on reruns. Unauthorized runs skip the restricted job. The allow-list only controls who can proceed, so use narrowly scoped permissions and keep workflow files protected by branch rules. Keep untrusted workflow inputs out of inline shell source; pass them through environment variables and validate them before use.
+
+The [linked workflow example](https://gist.githubusercontent.com/AlexAtkinson/73b8fde4c010e5983cfc22e0928dfc5c/raw/78bc6d1526f117e60292734d74b64327f5c0b560/gh-workflow-auth-example.yml) demonstrates the actor-allow-list idea, but do not copy it verbatim: it uses the retired `::set-output` command and interpolates workflow input into shell code. Use `$GITHUB_OUTPUT` for step outputs, and validate inputs before passing them to commands.
+
 ## 🛡️ Security
 
 Git hooks execute local code. Treat changes under `.githooks/hooks/` and `.githooks/hook-sync.sh` as executable-code changes and review them with the same care as build or deployment scripts.
@@ -130,3 +182,9 @@ This repository is intentionally build-system agnostic. Add the build command fo
 ```bash
 shellcheck .githooks/hook-sync.sh .githooks/setup.sh .githooks/hooks/*
 ```
+
+Add project-specific build and test checks before treating this baseline as complete.
+
+## License
+
+This repository is licensed under the [Apache License 2.0](LICENSE), which permits commercial and proprietary use. When redistributing the work, include the license and preserve applicable notices; retain the attribution in [NOTICE](NOTICE). Apache-2.0 does not grant rights to use project trademarks.
